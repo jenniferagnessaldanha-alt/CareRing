@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CareRing backend (serverless, pay-per-use)
+Parameters:
+  ModelId: {Type: String, Default: anthropic.claude-3-5-haiku-20241022-v1:0, Description: Bedrock model/inference profile ID you have access to}
+  FamilyPhone: {Type: String, Default: "+10000000000"}
+  CHWPhone: {Type: String, Default: "+10000000000"}
+  Tier2WaitSeconds: {Type: Number, Default: 1800, Description: Use 20 for demos}
+Globals:
+  Function: {Runtime: python3.12, Timeout: 60, MemorySize: 256, CodeUri: src/, Environment: {Variables: {EVENTS: !Ref Events, STATE: !Ref State, MODEL_ID: !Ref ModelId, TOPIC: !Ref Alerts, FAMILY_PHONE: !Ref FamilyPhone, CHW_PHONE: !Ref CHWPhone}}}
+Resources:
+  Events:
+    Type: AWS::DynamoDB::Table
+    Properties: {BillingMode: PAY_PER_REQUEST, AttributeDefinitions: [{AttributeName: pk, AttributeType: S},{AttributeName: sk, AttributeType: S}], KeySchema: [{AttributeName: pk, KeyType: HASH},{AttributeName: sk, KeyType: RANGE}], TimeToLiveSpecification: {AttributeName: ttl, Enabled: true}}
+  State:
+    Type: AWS::DynamoDB::Table
+    Properties: {BillingMode: PAY_PER_REQUEST, AttributeDefinitions: [{AttributeName: pk, AttributeType: S}], KeySchema: [{AttributeName: pk, KeyType: HASH}]}
+  Alerts: {Type: AWS::SNS::Topic}
+  Simulate:
+    Type: AWS::Serverless::Function
+    Properties: {Handler: simulate.handler, Policies: [DynamoDBCrudPolicy: {TableName: !Ref Events}]}
+  Ingest:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ingest.handler
+      Policies: [DynamoDBCrudPolicy: {TableName: !Ref Events}]
+      FunctionUrlConfig: {AuthType: NONE}   # Ring/RingGuard webhook; add a shared-secret header check before real use
+  Analyze:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: analyze.handler
+      Timeout: 120
+      Environment: {Variables: {MACHINE: !Ref Escalation, WAIT: !Ref Tier2WaitSeconds}}
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Events}
+        - DynamoDBCrudPolicy: {TableName: !Ref State}
+        - Statement: [{Effect: Allow, Action: [bedrock:InvokeModel], Resource: '*'}]
+        - Statement: [{Effect: Allow, Action: [states:StartExecution], Resource: !Ref Escalation}]
+      Events: {Nightly: {Type: Schedule, Properties: {Schedule: 'cron(0 15 * * ? *)'}}}
+  Escalate:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: escalate.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref State}
+        - SNSPublishMessagePolicy: {TopicName: !GetAtt Alerts.TopicName}
+        - Statement: [{Effect: Allow, Action: [sns:Publish], Resource: '*'}]
+      FunctionUrlConfig: {AuthType: NONE}   # /ack?elder=mom ; tokenize before real use
+  Escalation:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Definition:
+        StartAt: Tier1
+        States:
+          Tier1: {Type: Task, Resource: !GetAtt Escalate.Arn, Parameters: {action: notify, tier: 1, 'elder.$': '$.elder', 'msg.$': '$.msg'}, Next: Wait1, ResultPath: null}
+          Wait1: {Type: Wait, SecondsPath: '$.wait', Next: Check1}
+          Check1: {Type: Task, Resource: !GetAtt Escalate.Arn, Parameters: {action: acked, 'elder.$': '$.elder'}, ResultPath: '$.acked', Next: Choice1}
+          Choice1: {Type: Choice, Choices: [{Variable: '$.acked', BooleanEquals: true, Next: Done}], Default: Tier2}
+          Tier2: {Type: Task, Resource: !GetAtt Escalate.Arn, Parameters: {action: notify, tier: 2, 'elder.$': '$.elder', 'msg.$': '$.msg'}, Next: Wait2, ResultPath: null}
+          Wait2: {Type: Wait, SecondsPath: '$.wait', Next: Check2}
+          Check2: {Type: Task, Resource: !GetAtt Escalate.Arn, Parameters: {action: acked, 'elder.$': '$.elder'}, ResultPath: '$.acked', Next: Choice2}
+          Choice2: {Type: Choice, Choices: [{Variable: '$.acked', BooleanEquals: true, Next: Done}], Default: Tier3}
+          Tier3: {Type: Task, Resource: !GetAtt Escalate.Arn, Parameters: {action: notify, tier: 3, 'elder.$': '$.elder', 'msg.$': '$.msg'}, End: true}
+          Done: {Type: Succeed}
+      Policies: [LambdaInvokePolicy: {FunctionName: !Ref Escalate}]
+  Insight:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: insight.handler
+      Policies: [DynamoDBReadPolicy: {TableName: !Ref State}]
+      FunctionUrlConfig: {AuthType: NONE, Cors: {AllowOrigins: ['*'], AllowMethods: [GET]}}
+Outputs:
+  IngestUrl: {Value: !GetAtt IngestUrl.FunctionUrl}
+  AckUrl: {Value: !GetAtt EscalateUrl.FunctionUrl}
+  InsightUrl: {Value: !GetAtt InsightUrl.FunctionUrl}

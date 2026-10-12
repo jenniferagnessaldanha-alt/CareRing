@@ -1,0 +1,10 @@
+.aws-sam/
+samconfig.toml
+event.json
+msg.json
+site.zip
+RingGuard/
+__pycache__/
+CareRing/
+README - Copy.md
+README.local.md

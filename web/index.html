@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>CareRing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f4ef;--card:#fff;--ink:#1f2a2e;--mut:#6b7780;--acc:#0e7c7b;--warn:#d9822b;--bad:#c2410c;--ok:#2f855a;--line:#e4e0d6}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181a;--card:#1b2427;--ink:#e8eeee;--mut:#93a1a6;--acc:#3cc3c0;--warn:#f0a050;--bad:#f27a4a;--ok:#5cc08a;--line:#2b373b}}
+:root[data-theme="dark"]{--bg:#12181a;--card:#1b2427;--ink:#e8eeee;--mut:#93a1a6;--acc:#3cc3c0;--warn:#f0a050;--bad:#f27a4a;--ok:#5cc08a;--line:#2b373b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.w{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0}h2{font-size:15px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.tag{color:var(--mut);font-size:13px;margin:2px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}button.on{outline:2px solid var(--acc)}
+.score{font-size:40px;font-weight:700}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.ins{border-left:4px solid var(--warn);padding:6px 10px;margin:8px 0;background:rgba(217,130,43,.08);border-radius:6px}
+.ins.good{border-color:var(--ok);background:rgba(47,133,90,.08)}
+.tl{overflow-x:auto}.tl svg{min-width:560px;width:100%}
+label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
+.step{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);opacity:.4}.step.act{opacity:1}.step.done{opacity:.75}
+.dot{width:22px;height:22px;border-radius:50%;background:var(--line);flex:none;text-align:center;font-size:12px;line-height:22px}
+.act .dot{background:var(--warn);color:#fff}.done .dot{background:var(--ok);color:#fff}
+.sm{font-size:13px;color:var(--mut)}
+</style></head><body><div class="w">
+<div class="row" style="justify-content:space-between"><div><h1>💍 CareRing</h1><div class="tag">From passive monitoring to active, context-aware care.</div></div>
+<div class="sm" id="who"></div></div>
+
+<div class="card"><h2>Live from AWS</h2><div id="liveBody" class="sm">Connecting...</div></div>
+<div class="card"><div class="row"><span class="sm">Scenario (simulated Ring data):</span>
+<button id="b0" onclick="setDay(0)">Normal day</button><button id="b1" class="on" onclick="setDay(1)">Concerning day</button></div></div>
+
+<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Routine compliance</h2><div class="score" id="score"></div></div>
+<div class="sm" style="max-width:360px" id="scoreNote"></div></div></div>
+
+<div class="card"><h2>Agent insight · vs 30‑day baseline</h2><div id="ins"></div>
+<div class="sm" id="src"></div></div>
+
+<div class="card"><h2>Today's activity</h2><div class="tl"><svg id="tl" viewBox="0 0 600 190"></svg></div>
+<div class="sm">Dashed marks = 30‑day average first visit. Bars = today.</div></div>
+
+<div class="card"><h2>Escalation · human first</h2>
+<div id="esc"></div>
+<div class="row" style="margin-top:8px"><button class="p" onclick="startEsc()">Run escalation</button>
+<button onclick="reply()">Mom replies</button><button onclick="resetEsc()">Reset</button></div></div>
+
+<div class="card"><h2>Family settings</h2>
+<label><input type="checkbox" id="priv" onchange="render()"><span><b>Privacy Mode</b><br><span class="sm">Metadata only. No cloud AI, no video. Insights come from on‑device pattern rules.</span></span></label>
+<label><input type="checkbox" id="cNight" checked onchange="render()"><span><b>Late‑night kitchen visits are normal for Dad</b><br><span class="sm">Ignored in anomaly detection.</span></span></label>
+<label><input type="checkbox" id="cOut" checked onchange="render()"><span><b>Expect an outing by 10 AM (e.g. temple)</b><br><span class="sm">Culturally defined routine counted in the score.</span></span></label></div>
+
+<div class="card"><h2>Pipeline (production)</h2><div class="sm">Ring webhook → RingGuard (Lambda) → DynamoDB → nightly Lambda → Bedrock (Claude) summary → SNS + Twilio escalation → Amplify dashboard. This prototype runs the baseline and reasoning logic in the browser on simulated data.</div></div>
+</div>
+<script>
+// seeded RNG
+let s=42;const R=()=>(s=(s*16807)%2147483647)/2147483647;const N=(m,sd)=>m+sd*((R()+R()+R()-1.5)*2);
+const fmt=m=>{m=Math.round(m);let h=Math.floor(m/60)%24,mi=m%60;return(h%12||12)+":"+String(mi).padStart(2,"0")+(h<12?" AM":" PM")};
+// 30 days baseline
+const base=[];for(let d=0;d<30;d++)base.push({kitchen:N(470,15),out:N(540,25),nightBath:Math.max(0,Math.round(N(2,.6))),nightKit:Math.max(0,Math.round(N(1.4,.7))),livingMax:N(80,20)});
+const avg=k=>base.reduce((a,b)=>a+b[k],0)/30,sd=k=>{const m=avg(k);return Math.sqrt(base.reduce((a,b)=>a+(b[k]-m)**2,0)/30)};
+const NOW=665; // 11:05 AM
+const days=[{kitchen:472,out:535,nightBath:2,nightKit:1,living:[[520,580]],ev:[[400,'bed'],[472,'kitchen'],[535,'out']]},
+ {kitchen:null,out:null,nightBath:5,nightKit:3,living:[[485,NOW]],ev:[[405,'bed'],[485,'living'],[250,'bath'],[310,'bath'],[345,'bath'],[130,'bath'],[200,'bath'],[140,'kitchen'],[190,'kitchen'],[260,'kitchen']]}];
+let day=1,escState=-1,replied=false,timers=[];
+function setDay(i){day=i;b0.className=i==0?'on':'';b1.className=i==1?'on':'';resetEsc();}
+function analyze(){const d=days[day],f=[],pr=priv.checked;let score=100;
+ const bk=avg('kitchen');
+ if(d.kitchen===null){const late=NOW-bk;f.push({t:`Mom usually makes coffee by ${fmt(bk)}. Today there is no kitchen motion by ${fmt(NOW)} (${Math.round(late/60*10)/10} h late). She went to the living room at ${fmt(d.living[0][0])} and has been seated for ${Math.round((NOW-d.living[0][0])/6)/10} hours, versus a typical ${Math.round(avg('livingMax'))} min.`,sev:2});score-=35}
+ else if(Math.abs(d.kitchen-bk)>2*sd('kitchen')+10){f.push({t:`Kitchen visit at ${fmt(d.kitchen)}, unusual.`,sev:1});score-=10}
+ const nb=avg('nightBath');if(d.nightBath>nb+2*sd('nightBath')){f.push({t:`${d.nightBath} bathroom visits overnight versus an average of ${nb.toFixed(1)}. Possible sign of infection, medication effect, or fall risk.`,sev:2});score-=20}
+ if(!cNight.checked&&d.nightKit>avg('nightKit')+1.5){f.push({t:`${d.nightKit} late-night kitchen visits (baseline ${avg('nightKit').toFixed(1)}).`,sev:1});score-=10}
+ if(cOut.checked&&d.out===null){f.push({t:`No outing detected by 10:00 AM, which is part of her routine.`,sev:1});score-=15}
+ score=Math.max(0,score);return{f,score,pr}}
+function render(){const a=analyze(),sc=a.score;
+ who.textContent='Caregiver: Priya · Elder: Mom';
+ score.textContent=sc;score.className='score '+(sc>=80?'ok':sc>=55?'warn':'bad');
+ scoreNote.textContent=cOut.checked||cNight.checked?'Adjusted for your family\'s definition of normal.':'Using generic baseline only.';
+ ins.innerHTML=a.f.length?a.f.map(x=>`<div class="ins">${x.t}</div>`).join(''):'<div class="ins good">Routine matches the 30‑day baseline. Nothing to report.</div>';
+ src.textContent=a.pr?'Privacy Mode: on-device rules, metadata only, no video.':'Cloud reasoning via Bedrock (simulated here). Video only fetched on high-severity alerts, deleted after 24 h.';
+ draw();escRender()}
+function draw(){const d=days[day],t=document.getElementById('tl');const X=m=>40+m/1440*540;
+ const rows=[['bed',0],['kitchen',1],['living',2],['bath',3],['out',4]],names=['Bedroom','Kitchen','Living rm','Bathroom','Outing'];
+ let h='';rows.forEach(([k,i])=>{const y=20+i*32;h+=`<text x="2" y="${y+4}" font-size="9" fill="var(--mut)">${names[i]}</text><line x1="40" x2="580" y1="${y+10}" y2="${y+10}" stroke="var(--line)"/>`});
+ [0,6,12,18,24].forEach(x=>h+=`<text x="${X(x*60)-6}" y="185" font-size="9" fill="var(--mut)">${x}h</text>`);
+ const mk=(k,m)=>`<line x1="${X(m)}" x2="${X(m)}" y1="${20+k*32-8}" y2="${20+k*32+14}" stroke="var(--mut)" stroke-dasharray="3 2"/>`;
+ h+=mk(1,avg('kitchen'))+mk(4,avg('out'));
+ d.living.forEach(([a,b])=>h+=`<rect x="${X(a)}" y="${20+64-6}" width="${Math.max(3,X(b)-X(a))}" height="12" rx="3" fill="var(--warn)" opacity=".8"/>`);
+ d.ev.forEach(([m,k])=>{const i=rows.findIndex(r=>r[0]==k);if(i>=0&&k!='living')h+=`<circle cx="${X(m)}" cy="${20+i*32+4}" r="5" fill="var(--acc)"/>`});
+ h+=`<line x1="${X(NOW)}" x2="${X(NOW)}" y1="6" y2="172" stroke="var(--bad)"/><text x="${X(NOW)+3}" y="12" font-size="9" fill="var(--bad)">now</text>`;t.innerHTML=h}
+const steps=[['Alexa voice check-in','"Hi Mom, just checking in. Did you take your morning meds?"'],['Tier 1 · Family push','Priya gets the insight with a 10-second clip (Privacy Mode: summary only).'],['Tier 2 · Community SMS','After 30 min unacknowledged, SMS to neighbor / community health worker.'],['Tier 3 · Voice call','Automated call to the care coordinator.']];
+function escRender(){const sev=Math.max(0,...analyze().f.map(x=>x.sev));
+ if(!sev){esc.innerHTML='<div class="sm">No escalation needed.</div>';return}
+ esc.innerHTML=steps.map((s,i)=>{const c=replied&&escState>=0?(i==0?'done':''):(i<escState?'done':i==escState?'act':'');
+ return`<div class="step ${c}"><div class="dot">${c=='done'?'✓':i+1}</div><div><b>${s[0]}</b><div class="sm">${s[1]}</div></div></div>`}).join('')+
+ (replied?'<div class="ins good">Mom responded. Alert downgraded, dignity preserved. Family sees a calm note.</div>':'')}
+function startEsc(){resetEsc();if(!analyze().f.length)return;escState=0;render();
+ [1,2,3].forEach((n,i)=>timers.push(setTimeout(()=>{if(!replied){escState=n;render()}},(i+1)*1800)))}
+function reply(){if(escState<0)return;replied=true;timers.forEach(clearTimeout);render()}
+function resetEsc(){timers.forEach(clearTimeout);timers=[];escState=-1;replied=false;render()}
+render();
+fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?elder=mom').then(r=>r.json()).then(d=>{
+ const el=document.getElementById('liveBody');
+ if(!d.msg){el.textContent='No insight yet. Run the analyzer.';return}
+ const m=document.createElement('div');m.className='ins';m.textContent=d.msg;
+ const s=document.createElement('div');
+ s.textContent='Source: '+(d.source==='ai'?'Claude on Amazon Bedrock':'rule-based fallback')+' | '+new Date(d.ts*1000).toLocaleString()+' | '+(d.ack?'Mom replied':'awaiting reply');
+ el.textContent='';el.appendChild(m);el.appendChild(s);
+}).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});</script></body></html>
