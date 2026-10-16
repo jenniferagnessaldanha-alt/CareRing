@@ -43,7 +43,7 @@ label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
 <div class="card"><h2>Escalation · human first</h2>
 <div id="esc"></div>
 <div class="row" style="margin-top:8px"><button class="p" onclick="startEsc()">Run escalation</button>
-<button onclick="reply()">Mom replies</button><button onclick="resetEsc()">Reset</button></div></div>
+<button onclick="reply()">I'm fine</button><button onclick="hearAlert()">&#128266; Read alert aloud</button><button onclick="resetEsc()">Reset</button></div></div>
 
 <div class="card"><h2>Family settings</h2>
 <label><input type="checkbox" id="priv" onchange="render()"><span><b>Privacy Mode</b><br><span class="sm">Metadata only. No cloud AI, no video. Insights come from on‑device pattern rules.</span></span></label>
@@ -106,4 +106,7 @@ fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?eld
  const s=document.createElement('div');
  s.textContent='Source: '+(d.source==='ai'?'Claude on Amazon Bedrock':'rule-based fallback')+' | '+new Date(d.ts*1000).toLocaleString()+' | '+(d.ack?'Mom replied':'awaiting reply');
  el.textContent='';el.appendChild(m);el.appendChild(s);
-}).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});</script></body></html>
+}).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const v=speechSynthesis.getVoices();u.voice=v.find(x=>x.lang=='en-IN')||v.find(x=>x.lang.startsWith('en'))||null;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
+function hearAlert(){const t=document.getElementById('liveBody');say(t&&t.innerText.indexOf('Connecting')<0?t.innerText.split('Source:')[0]:'No live alert yet.')}
+const _se=startEsc;startEsc=function(){_se();say("Hi Mom, just checking in. Did you take your morning meds? If you are fine, press I'm fine.")};
+const _rp=reply;reply=function(){const w=escState>=0;_rp();if(w)say("Thank you, Mom. I will let Priya know you are fine.")};</script></body></html>
