@@ -3,9 +3,11 @@ Transform: AWS::Serverless-2016-10-31
 Description: CareRing backend (serverless, pay-per-use)
 Parameters:
   ModelId: {Type: String, Default: anthropic.claude-3-5-haiku-20241022-v1:0, Description: Bedrock model/inference profile ID you have access to}
-  FamilyPhone: {Type: String, Default: "+10000000000"}
-  CHWPhone: {Type: String, Default: "+10000000000"}
+  FamilyPhone: {NoEcho: true, Type: String, Default: "+10000000000"}
+  CHWPhone: {NoEcho: true, Type: String, Default: "+10000000000"}
   Tier2WaitSeconds: {Type: Number, Default: 1800, Description: Use 20 for demos}
+  RingHmacKey: {NoEcho: true, Type: String, Default: demo-hmac-key, Description: HMAC signing key issued by Ring (webhook signature)}
+  DeviceRooms: {Type: String, Default: '{"cam-kitchen":"kitchen","cam-bedroom":"bedroom","cam-bathroom":"bathroom","cam-living":"living_room","doorbell-front":"front_door"}', Description: Ring device id to room map}
 Globals:
   Function: {Runtime: python3.12, Timeout: 60, MemorySize: 256, CodeUri: src/, Environment: {Variables: {EVENTS: !Ref Events, STATE: !Ref State, MODEL_ID: !Ref ModelId, TOPIC: !Ref Alerts, FAMILY_PHONE: !Ref FamilyPhone, CHW_PHONE: !Ref CHWPhone}}}
 Resources:
@@ -23,8 +25,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: ingest.handler
-      Policies: [DynamoDBCrudPolicy: {TableName: !Ref Events}]
-      FunctionUrlConfig: {AuthType: NONE}   # Ring/RingGuard webhook; add a shared-secret header check before real use
+      Environment: {Variables: {RING_HMAC_KEY: !Ref RingHmacKey, DEVICE_ROOMS: !Ref DeviceRooms}}
+      Policies: [DynamoDBCrudPolicy: {TableName: !Ref Events}, DynamoDBCrudPolicy: {TableName: !Ref State}]
+      FunctionUrlConfig: {AuthType: NONE}   # Ring webhook URL; every request is HMAC-verified in code
   Analyze:
     Type: AWS::Serverless::Function
     Properties:
@@ -69,7 +72,19 @@ Resources:
       Handler: insight.handler
       Policies: [DynamoDBReadPolicy: {TableName: !Ref State}]
       FunctionUrlConfig: {AuthType: NONE, Cors: {AllowOrigins: ['*'], AllowMethods: [GET]}}
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.handler
+      Timeout: 30
+      Environment: {Variables: {ANALYZE: !Ref Analyze, MACHINE: !Ref Escalation, WAIT: !Ref Tier2WaitSeconds}}
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref State}
+        - LambdaInvokePolicy: {FunctionName: !Ref Analyze}
+        - Statement: [{Effect: Allow, Action: [states:StartExecution], Resource: !Ref Escalation}, {Effect: Allow, Action: [sns:Publish], Resource: '*'}]
+      FunctionUrlConfig: {AuthType: NONE, Cors: {AllowOrigins: ['*'], AllowMethods: [GET]}}
 Outputs:
   IngestUrl: {Value: !GetAtt IngestUrl.FunctionUrl}
   AckUrl: {Value: !GetAtt EscalateUrl.FunctionUrl}
   InsightUrl: {Value: !GetAtt InsightUrl.FunctionUrl}
+  ApiUrl: {Value: !GetAtt ApiUrl.FunctionUrl}

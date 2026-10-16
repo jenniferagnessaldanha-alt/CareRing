@@ -1,4 +1,4 @@
-﻿import os, boto3
+import os, boto3
 state = boto3.resource("dynamodb").Table(os.environ["STATE"]); sns = boto3.client("sns")
 def handler(e, ctx):
     if "requestContext" in e:

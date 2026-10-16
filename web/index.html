@@ -27,6 +27,7 @@ label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
 <div class="row" style="justify-content:space-between"><div><h1>💍 CareRing</h1><div class="tag">From passive monitoring to active, context-aware care.</div></div>
 <div class="sm" id="who"></div></div>
 
+<div class="sm" style="margin:0 0 10px">DEMO MODE: Ring webhook is live and signed. Routine baseline is simulated. Reasoning is a rule-based fallback.</div><div class="card"><h2>Ring event received</h2><div id="ringBody" class="sm">Waiting for a Ring webhook...</div></div>
 <div class="card"><h2>Live from AWS</h2><div id="liveBody" class="sm">Connecting...</div></div>
 <div class="card"><div class="row"><span class="sm">Scenario (simulated Ring data):</span>
 <button id="b0" onclick="setDay(0)">Normal day</button><button id="b1" class="on" onclick="setDay(1)">Concerning day</button></div></div>
@@ -109,4 +110,5 @@ fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?eld
 }).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const v=speechSynthesis.getVoices();u.voice=v.find(x=>x.lang=='en-IN')||v.find(x=>x.lang.startsWith('en'))||null;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
 function hearAlert(){const t=document.getElementById('liveBody');say(t&&t.innerText.indexOf('Connecting')<0?t.innerText.split('Source:')[0]:'No live alert yet.')}
 const _se=startEsc;startEsc=function(){_se();say("Hi Mom, just checking in. Did you take your morning meds? If you are fine, press I'm fine.")};
-const _rp=reply;reply=function(){const w=escState>=0;_rp();if(w)say("Thank you, Mom. I will let Priya know you are fine.")};</script></body></html>
+const _rp=reply;reply=function(){const w=escState>=0;_rp();if(w)say("Thank you, Mom. I will let Priya know you are fine.")};function ringPanel(){fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?elder=mom').then(r=>r.json()).then(d=>{const r=d.ring,el=document.getElementById('ringBody');if(!r)return;el.textContent='';[['Device',r.device],['Room',r.room],['Event',r.event_type+' / '+r.sub_type],['Event ID',r.event_id],['Signature',r.verified?'verified (HMAC-SHA256)':'unverified'],['Latency',r.latency_ms+' ms']].forEach(([k,v])=>{const row=document.createElement('div');row.textContent=k+': '+v;el.appendChild(row)})}).catch(()=>{})}
+ringPanel();setInterval(ringPanel,5000);</script></body></html>
