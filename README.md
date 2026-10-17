@@ -7,7 +7,7 @@ No new hardware. CareRing receives signed Ring motion events, learns each elder'
 **Live demo:** https://main.d2096di6el34ri.amplifyapp.com/
 **Built for:** Build, Ship, Shape: Amazon Developer Hackathon, Ring track.
 
-![Dashboard](docs/dashboard%21.jpeg)
+![Dashboard](docs/dashboard.jpeg)
 
 ## What it does
 
