@@ -7,7 +7,7 @@ No new hardware. CareRing receives signed Ring motion events, learns each elder'
 **Live demo:** https://main.d2096di6el34ri.amplifyapp.com/
 **Built for:** Build, Ship, Shape: Amazon Developer Hackathon, Ring track.
 
-![Dashboard](docs/dashboard-final.jpeg)
+![Dashboard](docs/dashboard%21.jpeg)
 
 ## What it does
 
@@ -22,8 +22,6 @@ No new hardware. CareRing receives signed Ring motion events, learns each elder'
 - **Roles.** Primary caregiver, sibling, neighbor and doctor views show different information (simulated, no sign-in yet).
 - **Safety extras.** Weather and umbrella advice, water intake, a motion-based inactivity check, device battery reminders, a weekly trend report, a neighbor emergency contact and an Alexa-style voice check-in simulation.
 - **Day Ring.** An animated 24-hour view of the day, which pulses when a Ring event arrives.
-
-![Ring event](docs/ring-event.png)
 
 ## Architecture
 
@@ -113,5 +111,3 @@ CareRing was started and built during the hackathon period (first commit October
 ## License
 
 MIT. See `LICENSE`.
-
-
