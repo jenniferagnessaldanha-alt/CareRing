@@ -40,6 +40,9 @@ button{transition:transform .15s}button:active{transform:scale(.95)}
 <div class="sm" style="margin:0 0 10px">DEMO MODE: Ring webhook is live and signed. Routine baseline is simulated. Reasoning is a rule-based fallback.</div><div class="card"><h2>Ring event received</h2><div id="ringBody" class="sm">Waiting for a Ring webhook...</div></div>
 <div class="card"><h2>Day ring</h2><svg id="dayRing" viewBox="0 0 320 320" style="width:100%;max-width:320px;display:block;margin:0 auto"></svg><div class="sm" style="text-align:center">Dots are today. Dashed K and O mark her usual first kitchen visit and outing. A red pulse means expected but missing. The ring chimes when a Ring event arrives.</div></div>
 <div class="card"><h2>Live from AWS</h2><div id="liveBody" class="sm">Connecting...</div></div>
+<div class="card" id="roleCard"><div class="row"><span class="sm">Viewing as:</span><select id="roleSel" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><option value="priya">Priya (primary caregiver)</option><option value="mom">Mom</option><option value="sibling">Sibling</option><option value="neighbor">Neighbor</option><option value="doctor">Doctor</option></select></div><div class="sm" id="roleNote" style="margin-top:6px"></div><div class="sm">Demo: roles are simulated. Real access control would use sign-in, for example Amazon Cognito.</div></div>
+<div class="card"><h2>Privacy and consent</h2><div class="sm"><b>CareRing watches:</b> which room has motion, and when. <b>Never:</b> video, audio or photos.<br><b>Shared with:</b> Priya, and others only as the role list allows.<br><b>Where data lives:</b> motion events are stored in the family's own AWS account. Today they are processed in the cloud. On-device processing is planned, not built.</div><div id="consentLine" class="sm" style="margin:8px 0"></div><div id="privState" class="sm"></div><div class="row" style="margin-top:8px"><button id="pauseBtn" class="p">Pause monitoring</button><button id="withdrawBtn">Withdraw consent</button></div></div>
+<div class="card" id="privBanner" style="display:none"><div>&#128274; Mom has paused monitoring. Only the emergency button works.</div></div>
 <div class="card"><div class="row"><span class="sm">Scenario (simulated Ring data):</span>
 <button id="b0" onclick="setDay(0)">Normal day</button><button id="b1" class="on" onclick="setDay(1)">Concerning day</button></div></div>
 
@@ -60,6 +63,13 @@ button{transition:transform .15s}button:active{transform:scale(.95)}
 <div class="card"><h2>Cultural routine engine</h2><div class="row" id="calRow"></div><div class="sm" id="calNote" style="margin-top:8px"></div></div>
 <div class="card"><h2>Reverse check-in · Mom's view</h2><div class="row"><button class="sos" onclick="sos(1)">🙋 I need Priya</button><button class="sos hot" onclick="sos(3)">🚨 Emergency</button></div><div class="sm" id="sosNote" style="margin-top:10px">Mom can ask for help herself. One tap, no watching involved.</div></div>
 <div class="card"><h2>Medicine and meal schedule</h2><div class="sm" id="simLbl"></div><input type="range" id="simSl" min="360" max="1380" step="15" value="665" style="width:100%"><div id="schedAlert"></div><div id="schedList"></div><div class="sm" style="margin-top:8px">Drag the slider to move the clock. Meals are checked against kitchen activity. Tablets need a tap. Reminders are spoken aloud.</div></div>
+<div class="card"><h2>Weather advice</h2><div id="wxBody" class="sm">Loading forecast...</div><div class="row" style="margin-top:8px"><button id="wxSay">Hear advice</button></div><div class="sm" style="margin-top:6px">Also spoken when the doorbell sees her heading out.</div></div>
+<div class="card"><h2>Water intake</h2><div id="waterBody" class="sm"></div><div style="height:10px;border-radius:6px;background:var(--line);margin:8px 0;overflow:hidden"><div id="waterBar" style="height:100%;width:0;transition:width .6s"></div></div><div id="waterNote" class="sm"></div><div class="row" style="margin-top:8px"><button id="waterAdd">+1 glass</button></div><div class="sm" style="margin-top:6px">Simulated smart bottle. Ring cannot measure water. Not medical advice.</div></div>
+<div class="card"><h2>Safety check · movement</h2><div id="stillBody" class="sm"></div><div id="stillState" class="ins" style="margin:8px 0"></div><div class="row"><button id="stillOk">I'm fine</button><button id="stillSend">Send alert to family</button><button id="ringBtn" class="sos">Ring button: tap = Priya, double-tap = emergency</button></div><div class="sm" style="margin-top:8px">Motion-based inactivity check only. Ring cannot sense impact or acceleration, so true fall detection would need a wearable. The Ring button is a simulation.</div></div>
+<div class="card"><h2>Device batteries</h2><div id="battBody"></div><div id="battNote" class="sm" style="margin-top:6px"></div><div class="sm" style="margin-top:6px">Simulated battery levels. Charging reminders are spoken aloud.</div></div>
+<div class="card"><h2>Weekly trend</h2><svg id="trendSvg" viewBox="0 0 300 112" style="width:100%;max-width:420px;display:block"></svg><div id="trendMsg" class="ins" style="margin-top:6px"></div><div class="sm" style="margin-top:6px">Activity score per day, dashed line is last week's average. Simulated data.</div></div>
+<div class="card"><h2>Emergency contacts</h2><div class="row"><input id="nbName" placeholder="Neighbor name" style="font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><input id="nbPhone" placeholder="+918792340621" style="font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button id="nbSave">Save</button></div><div id="nbState" class="sm" style="margin-top:8px"></div><div class="sm" style="margin-top:6px">The number stays in this browser. Real text delivery needs a verified number in Amazon SNS, so the demo shows the flow.</div></div>
+<div class="card"><h2>Alexa-style voice check-in</h2><div id="echoState" class="ins good" style="margin:6px 0">Idle. Starts when the movement check finds prolonged inactivity.</div><div style="height:8px;border-radius:5px;background:var(--line);overflow:hidden"><div id="echoBar" style="height:100%;width:0;background:var(--warn)"></div></div><div class="row" style="margin-top:8px"><button id="echoGo" class="p">Simulate prolonged inactivity</button><button id="echoOk">I'm fine</button><button id="echoMic">Say yes (microphone)</button></div><div class="sm" style="margin-top:6px">Simulation. No Echo device or Alexa skill is connected. A real version would be an Alexa skill.</div></div>
 <div class="card"><h2>Family settings</h2>
 <label><input type="checkbox" id="priv" onchange="render()"><span><b>Privacy Mode</b><br><span class="sm">Metadata only. No cloud AI, no video. Insights come from on‑device pattern rules.</span></span></label>
 <label><input type="checkbox" id="cNight" checked onchange="render()"><span><b>Late‑night kitchen visits are normal for Dad</b><br><span class="sm">Ignored in anomaly detection.</span></span></label>
@@ -124,11 +134,10 @@ fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?eld
  const s=document.createElement('div');
  s.textContent='Source: '+(d.source==='ai'?'Claude on Amazon Bedrock':'rule-based fallback')+' | '+new Date(d.ts*1000).toLocaleString()+' | '+(d.ack?'Mom replied':'awaiting reply');
  el.textContent='';el.appendChild(m);el.appendChild(s);
-}).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const v=speechSynthesis.getVoices();u.voice=v.find(x=>x.lang=='en-IN')||v.find(x=>x.lang.startsWith('en'))||null;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
-function hearAlert(){const t=document.getElementById('liveBody');say(t&&t.innerText.indexOf('Connecting')<0?t.innerText.split('Source:')[0]:'No live alert yet.')}
-const _se=startEsc;startEsc=function(){_se();say("Hi Mom, just checking in. Did you take your morning meds? If you are fine, press I'm fine.")};
-const _rp=reply;reply=function(){const w=escState>=0;_rp();if(w)say("Thank you, Mom. I will let Priya know you are fine.")};function ringPanel(){fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?elder=mom').then(r=>r.json()).then(d=>{const r=d.ring,el=document.getElementById('ringBody');if(!r)return;el.textContent='';[['Device',r.device],['Room',r.room],['Event',r.event_type+' / '+r.sub_type],['Event ID',r.event_id],['Signature',r.verified?'verified (HMAC-SHA256)':'unverified'],['Latency',r.latency_ms+' ms']].forEach(([k,v])=>{const row=document.createElement('div');row.textContent=k+': '+v;el.appendChild(row)})}).catch(()=>{})}
-ringPanel();setInterval(ringPanel,5000);(function(){
+}).catch(()=>{document.getElementById('liveBody').textContent='Backend unreachable, showing simulated data below.'});
+function ringPanel(){fetch('https://r5lxd2mgd3tbldife2jslw4zii0dqgdu.lambda-url.us-east-1.on.aws/?elder=mom').then(r=>r.json()).then(d=>{const r=d.ring,el=document.getElementById('ringBody');if(!r)return;el.textContent='';[['Device',r.device],['Room',r.room],['Event',r.event_type+' / '+r.sub_type],['Event ID',r.event_id],['Signature',r.verified?'verified (HMAC-SHA256)':'unverified'],['Latency',r.latency_ms+' ms']].forEach(([k,v])=>{const row=document.createElement('div');row.textContent=k+': '+v;el.appendChild(row)})}).catch(()=>{})}
+ringPanel();setInterval(ringPanel,5000);
+(function(){
 const st=document.createElement('style');st.textContent='@keyframes draw{from{stroke-dashoffset:1}}@keyframes pop{from{transform:scale(0);opacity:0}}#dayRing .dot{transform-box:fill-box;transform-origin:center;animation:pop .5s both}';document.head.appendChild(st);
 const C=160,R=112,P=(m,r)=>{const a=m/1440*2*Math.PI-Math.PI/2;return[C+r*Math.cos(a),C+r*Math.sin(a)]};
 const COL={bed:'#a78bfa',kitchen:'var(--acc)',bath:'#60a5fa',out:'var(--ok)'};
@@ -146,7 +155,12 @@ window.ringDraw=function(){
 const _r=render;render=function(){_r();ringDraw()};
 let last='';const rb=document.getElementById('ringBody');
 if(rb)new MutationObserver(()=>{const m=/Event ID: (\S+)/.exec(rb.innerText||'');if(!m||m[1]===last)return;last=m[1];const el=document.getElementById('dayRing');if(!el)return;const s=document.createElementNS('http://www.w3.org/2000/svg','circle');s.setAttribute('cx',C);s.setAttribute('cy',C);s.setAttribute('fill','none');s.setAttribute('stroke','var(--acc)');s.setAttribute('stroke-width','3');s.innerHTML='<animate attributeName="r" from="30" to="140" dur="1.4s" fill="freeze"/><animate attributeName="opacity" from="1" to="0" dur="1.4s" fill="freeze"/>';el.appendChild(s);setTimeout(()=>s.remove(),1500)}).observe(rb,{childList:true});
-ringDraw();})();(function(){
+ringDraw();})();
+function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const v=speechSynthesis.getVoices();u.voice=v.find(x=>x.lang=='en-IN')||v.find(x=>x.lang.startsWith('en'))||null;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
+function hearAlert(){const t=document.getElementById('liveBody');say(t&&t.innerText.indexOf('Connecting')<0?t.innerText.split('Source:')[0]:'No live alert yet.')}
+const _se=startEsc;startEsc=function(){_se();say("Hi Mom, just checking in. Did you take your morning meds? If you are fine, press I'm fine.")};
+const _rp=reply;reply=function(){const w=escState>=0;_rp();if(w)say("Thank you, Mom. I will let Priya know you are fine.")};
+(function(){
 const cv=document.createElement('canvas');cv.id='bg';document.body.prepend(cv);
 const st=document.createElement('style');st.textContent='#bg{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}.w{position:relative}.card{backdrop-filter:blur(8px);background:color-mix(in srgb,var(--card) 80%,transparent)}';document.head.appendChild(st);
 const x=cv.getContext('2d'),D=Math.min(devicePixelRatio||1,1.5);let W,H;
@@ -166,6 +180,7 @@ function f(t){
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)requestAnimationFrame(f)}
 requestAnimationFrame(f);
 })();
+
 function countUp(t){const el=document.getElementById('score'),f=_sc;_sc=t;const s=performance.now();(function st(n){const p=Math.min(1,(n-s)/700);el.textContent=Math.round(f+(t-f)*p);if(p<1)requestAnimationFrame(st)})(s)}
 function renderCal(){calRow.innerHTML=Object.keys(CALS).map(k=>`<button class="${k==cal?'on':''}" onclick="setCal('${k}')">${CALS[k][0]}</button>`).join('');calNote.textContent=CALS[cal][1]}
 function showLive(d){const el=document.getElementById('liveBody');if(!el||!d.msg)return;const m=document.createElement('div');m.className='ins';m.textContent=d.msg;const s=document.createElement('div');s.textContent='Source: '+({ai:'Claude on Amazon Bedrock',help:'Mom pressed the help button'}[d.source]||'rule-based fallback')+' | '+new Date(d.ts*1000).toLocaleString()+' | '+(d.ack?'Mom replied':'awaiting reply');el.textContent='';el.appendChild(m);el.appendChild(s)}
@@ -211,5 +226,78 @@ function note(){const d=days[day];sn.textContent='Kitchen: '+(d.kitchen==null?'n
 document.getElementById('simSl').oninput=e=>{simT=+e.target.value;schedRender()};
 const _r2=render;render=function(){_r2();note();schedRender()};
 render();
+})();
+(function(){
+const $=i=>document.getElementById(i),sp=t=>(window.say||(x=>{try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(x))}catch(e){}}))(t);
+let advice='',spokenW=0,okAns=0,spokenS=0,extra=0,tm=null;
+fetch('https://api.open-meteo.com/v1/forecast?latitude=12.97&longitude=77.59&daily=precipitation_probability_max,temperature_2m_max&timezone=auto&forecast_days=1').then(r=>r.json()).then(d=>{const p=d.daily.precipitation_probability_max[0],t=d.daily.temperature_2m_max[0];advice=(p>=50?'Rain is likely today ('+p+' percent), so please take your umbrella. ':'Rain is unlikely today ('+p+' percent). ')+(t>=33?'It will be hot, up to '+Math.round(t)+' degrees, so drink plenty of water.':'The high will be about '+Math.round(t)+' degrees.');$('wxBody').textContent=advice+' (Bengaluru forecast, Open-Meteo)'}).catch(()=>{$('wxBody').textContent='Weather unavailable right now.'});
+$('wxSay').onclick=()=>advice&&sp('Good morning Mom. '+advice);
+const rb=$('ringBody');let last='';
+if(rb)new MutationObserver(()=>{const m=/Event ID: (\S+)/.exec(rb.textContent||'');if(m&&m[1]!==last){last=m[1];if(/Room: ?front_door/.test(rb.textContent)&&advice)sp('Mom, you are heading out. '+advice)}}).observe(rb,{childList:true});
+const RATE=[.7,.25,.6,.8,.7];
+function water(){const sl=$('simSl'),t=Math.max(0,((sl?+sl.value:665)-420)/60),g=Math.floor((RATE[day]||.7)*t)+extra,typ=Math.round(.65*t*10)/10,proj=t>1?Math.round(g/t*15*10)/10:null,low=t>2&&g<.6*typ;
+ $('waterBody').textContent='Glasses so far: '+g+' | typical by now: '+typ+(proj!==null?' | at this pace: about '+proj+' today':'')+' | 30-day normal: 7.2 +/- 1.1 per day';
+ $('waterBar').style.width=Math.min(100,g/8*100)+'%';$('waterBar').style.background=low?'var(--bad)':'var(--acc)';
+ $('waterNote').textContent=low?'Below her usual pace. Gentle reminder suggested.':'On track.';
+ if(low&&!spokenW){spokenW=1;sp('Mom, please have a glass of water.')}if(!low)spokenW=0}
+$('waterAdd').onclick=()=>{extra++;water()};$('simSl')&&$('simSl').addEventListener('input',water);
+function still(){const d=days[day],m=Math.max(0,...d.ev.filter(e=>e[0]<=NOW).map(e=>e[0]),...d.living.filter(a=>a[1]<NOW).map(a=>a[1])),gap=NOW-m,lv=gap>=150?2:gap>=100?1:0;
+ $('stillBody').textContent='Last movement: '+fmt(m)+' ('+gap+' min before the clock) | typical longest stillness: about 80 min';
+ const s=$('stillState');s.className='ins'+(lv?'':' good');
+ s.textContent=lv==2?'Unusually long stillness. Family alert recommended.':lv==1?(okAns?'Check-in answered. Thank you, Mom.':'Long stillness. Check-in prompt sent: "Mom, are you okay?"'):'Movement looks normal.';
+ if(lv==1&&!okAns&&!spokenS){spokenS=1;sp('Mom, are you okay? Please tap I am fine.')}if(lv!=1)spokenS=0}
+$('stillOk').onclick=()=>{okAns=1;still()};
+$('stillSend').onclick=()=>window.sos?sos(3):($('stillState').textContent='Alert sent to the care circle.');
+$('ringBtn').onclick=()=>{clearTimeout(tm);tm=setTimeout(()=>window.sos?sos(1):0,280)};
+$('ringBtn').ondblclick=()=>{clearTimeout(tm);window.sos?sos(3):0};
+const _r3=render;render=function(){_r3();water();still()};
+const _sd=setDay;setDay=function(i){okAns=0;spokenS=0;spokenW=0;extra=0;_sd(i)};
+render();
+})();
+(function(){
+const $=i=>document.getElementById(i),sp=t=>(window.say||(x=>{try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(x))}catch(e){}}))(t);
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+const sty=document.createElement('style');sty.textContent='@keyframes grow2{from{transform:scaleY(0)}}';document.head.appendChild(sty);
+let privOn=ls.get('cr_priv')=='1',role='priya',spokenB={},charged={},et=null;
+const ROLES={priya:['Priya',null,'Sees everything and manages settings.'],mom:['Mom',null,'Sees exactly what the family sees, and controls privacy.'],
+ sibling:['Sibling',['Routine compliance','Agent insight · vs 30-day baseline',"Today's activity",'Escalation · human first','Medicine and meal schedule','Weekly trend','Device batteries','Safety check · movement','Day ring','Water intake','Weather advice'],'Sees insights and alerts. No settings.'],
+ neighbor:['Neighbor',['Escalation · human first','Emergency contacts'],'Sees emergency alerts only. No daily activity.'],
+ doctor:['Doctor',['Weekly trend','Routine compliance','Agent insight · vs 30-day baseline','Water intake','Medicine and meal schedule'],'Sees trends and health summaries only.']};
+const KEEP=['Privacy and consent',"Reverse check-in · Mom's view",'Emergency contacts','Escalation · human first','Weather advice'];
+function applyView(){const al=ROLES[role][1];document.querySelectorAll('.card').forEach(c=>{const h=c.querySelector('h2'),t=h?h.textContent:'';let s=true;
+ if(h){if(al&&!al.includes(t)&&t!=='Privacy and consent')s=false;if(privOn&&!KEEP.includes(t))s=false}else if(c.id==='privBanner')s=privOn;else if(privOn&&c.id!=='roleCard')s=false;
+ c.style.display=s?'':'none'});$('roleNote').textContent=ROLES[role][2]}
+function setPriv(v){privOn=v;ls.set('cr_priv',v?'1':'0');$('pauseBtn').textContent=v?'Resume monitoring':'Pause monitoring';$('privState').textContent=v?'Monitoring is paused. The family sees only the emergency button.':'Monitoring is on, with your consent.';applyView()}
+function consentUI(){const c=ls.get('cr_consent');$('consentLine').textContent=c?'Consent given on '+new Date(+c).toLocaleDateString()+'. You can withdraw anytime.':'No consent recorded yet.'}
+function showModal(){if($('consentModal'))return;const m=document.createElement('div');m.id='consentModal';m.style.cssText='position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+ m.innerHTML='<div style="max-width:460px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:18px"><h3 style="margin:0 0 8px">Hello Mom</h3><p>CareRing keeps a gentle eye on your daily routine so Priya knows you are well. It notes which room has motion and when. It never records video, audio or photos.</p><p>You choose who sees what. You can pause it at any time with one tap, and you can withdraw your consent whenever you like.</p><div class="row"><button class="p" id="cYes">I agree</button><button id="cNo">Not now</button></div></div>';
+ document.body.appendChild(m);$('cYes').onclick=()=>{ls.set('cr_consent',Date.now());setPriv(false);consentUI();m.remove()};$('cNo').onclick=()=>{setPriv(true);m.remove()}}
+$('pauseBtn').onclick=()=>setPriv(!privOn);$('withdrawBtn').onclick=()=>{ls.del('cr_consent');setPriv(true);consentUI();showModal()};
+$('roleSel').onchange=e=>{role=e.target.value;applyView()};
+const LV={0:[82,64,71],1:[78,14,66],2:[60,28,70],3:[75,52,12],4:[90,41,58]},DN=['Front Door doorbell','Kitchen camera','Bedroom camera'];
+function batt(){const L=LV[day]||LV[0],el=$('battBody');el.innerHTML='';
+ DN.forEach((n,i)=>{const k=day+'_'+i,v=charged[k]?100:L[i],c=v<=15?'var(--bad)':v<=30?'var(--warn)':'var(--ok)',r=document.createElement('div');r.style.cssText='display:flex;gap:10px;align-items:center;padding:6px 0';
+  r.innerHTML='<div style="flex:1">'+n+'<div style="height:8px;border-radius:5px;background:var(--line);margin-top:4px;overflow:hidden"><div style="height:100%;width:'+v+'%;background:'+c+';transition:width .8s"></div></div></div><span class="sm" style="color:'+c+'">'+v+'%</span>';
+  if(v<=30){const b=document.createElement('button');b.textContent='Mark charging';b.onclick=()=>{charged[k]=1;batt()};r.appendChild(b);if(v<=15&&!spokenB[k]){spokenB[k]=1;sp('Priya, the '+n.toLowerCase()+' battery is at '+v+' percent. Please charge it tonight.')}}
+  el.appendChild(r)});
+ $('battNote').textContent=L.some((v,i)=>v<=15&&!charged[day+'_'+i])?'A dead camera looks like no movement. Charge it tonight so a quiet camera is not mistaken for a quiet day.':'All devices have enough charge.'}
+const WK={0:[88,91,87,90,89,92,90],1:[85,80,74,68,60,55,50],2:[88,86,90,84,85,83,86],3:[84,88,70,92,66,90,60],4:[92,95,91,94,93,96,94]};
+function trend(){const w=WK[day]||WK[0],a=w.reduce((x,y)=>x+y,0)/7,ch=Math.round((a-90)/90*100);let h='';
+ w.forEach((v,i)=>{h+='<rect x="'+(20+i*38)+'" y="'+(90-v*.8)+'" width="26" height="'+v*.8+'" rx="4" fill="'+(v<70?'var(--warn)':'var(--acc)')+'" style="transform-box:fill-box;transform-origin:bottom;animation:grow2 .7s both;animation-delay:'+i*.08+'s"/><text x="'+(33+i*38)+'" y="104" font-size="9" fill="var(--mut)" text-anchor="middle">'+'MTWTFSS'[i]+'</text>'});
+ $('trendSvg').innerHTML=h+'<line x1="14" x2="290" y1="18" y2="18" stroke="var(--mut)" stroke-dasharray="3 3"/>';
+ $('trendMsg').textContent=ch<=-15?"Mom's activity is "+Math.abs(ch)+'% lower this week, consider checking in.':ch>=15?"Mom's activity is "+ch+'% higher this week.':"Mom's activity is steady this week ("+(ch>0?'+':'')+ch+'% vs last week).'}
+function nb(){try{return JSON.parse(ls.get('cr_nb'))}catch(e){return null}}
+function nbLoad(){const o=nb();if(o){$('nbName').value=o.n;$('nbPhone').value=o.p;$('nbState').textContent='Emergency alerts also go to '+o.n+' ('+o.p+').'}}
+$('nbSave').onclick=()=>{const n=$('nbName').value.trim(),p=$('nbPhone').value.trim().replace(/[\s-]/g,'');if(!n||!/^\+\d{8,15}$/.test(p)){$('nbState').textContent='Enter a name and a number like +918792340621.';return}ls.set('cr_nb',JSON.stringify({n,p}));nbLoad()};
+const _s=sos;sos=function(l){_s(l);const o=nb();if(l==3)$('sosNote').textContent+=o?' '+o.n+' ('+o.p+') is also being alerted (demo).':' Add a neighbor in Emergency contacts so they are alerted too.'};
+const ES=t=>{$('echoState').textContent=t};
+function echoReply(){if(!et)return;clearInterval(et);et=null;$('echoBar').style.width='0';ES('Mom replied. Alert cancelled. Thank you, Mom.');sp('Thank you, Mom.')}
+function echoFail(){clearInterval(et);et=null;ES('No reply. Notifying Priya and the neighbor.');sos(1);const o=nb();$('sosNote').textContent+=o?' '+o.n+' ('+o.p+') is also being notified (demo).':' Add a neighbor in Emergency contacts.'}
+$('echoGo').onclick=()=>{clearInterval(et);ES('Echo asks: "Mom, are you okay? Please say yes."');sp('Mom, are you okay? Please say yes or tap I am fine.');let n=100;et=setInterval(()=>{n--;$('echoBar').style.width=n+'%';if(n<=0)echoFail()},100)};
+$('echoOk').onclick=echoReply;
+$('echoMic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){ES('Voice recognition is not supported in this browser. Tap I am fine.');return}const r=new SR();r.lang='en-IN';r.onresult=e=>{if(/yes|fine|ok|okay|haan|theek/i.test(e.results[0][0].transcript))echoReply()};try{r.start()}catch(x){}};
+const _r4=render;render=function(){_r4();batt();trend();applyView()};
+const _sd2=setDay;setDay=function(i){spokenB={};_sd2(i)};
+setPriv(privOn);consentUI();nbLoad();if(!ls.get('cr_consent'))showModal();render();
 })();
 </script></body></html>
