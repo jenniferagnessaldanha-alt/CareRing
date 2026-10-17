@@ -78,7 +78,7 @@ button{transition:transform .15s}button:active{transform:scale(.95)}
 <div class="card"><h2>Pipeline (production)</h2><div class="sm">Ring webhook → RingGuard (Lambda) → DynamoDB → nightly Lambda → Bedrock (Claude) summary → SNS + Twilio escalation → Amplify dashboard. This prototype runs the baseline and reasoning logic in the browser on simulated data.</div></div>
 </div>
 <script>
-const API='https://gf55hcoe2oxopn7xxp4o6oclny0iiljr.lambda-url.us-east-1.on.aws/',live=!API.startsWith('API_');
+const API='API_BASE_PLACEHOLDER',live=!API.startsWith('API_');
 const CALS={everyday:['Everyday','Standard routine.'],ramadan:['Ramadan','Pre-dawn kitchen activity is normal. Morning kitchen check paused.'],temple:['Sunday temple','A temple outing by 10 AM is expected.'],diwali:['Diwali','Festival day: visitors and cooking all day. Outing and kitchen checks paused.']};
 let cal='everyday',_sc=0;
 // seeded RNG
