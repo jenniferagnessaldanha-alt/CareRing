@@ -1,0 +1,21 @@
+"""Adds roles, privacy and consent, batteries, weekly trend, neighbor contact and a voice check-in simulation.
+Run AFTER apply_ui.py and apply_extras.py.   python tools/apply_final.py"""
+import sys, shutil, os
+P = "web/index.html"; h = open(P, encoding="utf-8").read()
+if "roleSel" in h: sys.exit("Already applied.")
+if "stillBody" not in h: sys.exit("Run tools/apply_ui.py and tools/apply_extras.py first.")
+TOP = """<div class="card" id="roleCard"><div class="row"><span class="sm">Viewing as:</span><select id="roleSel" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><option value="priya">Priya (primary caregiver)</option><option value="mom">Mom</option><option value="sibling">Sibling</option><option value="neighbor">Neighbor</option><option value="doctor">Doctor</option></select></div><div class="sm" id="roleNote" style="margin-top:6px"></div><div class="sm">Demo: roles are simulated. Real access control would use sign-in, for example Amazon Cognito.</div></div>
+<div class="card"><h2>Privacy and consent</h2><div class="sm"><b>CareRing watches:</b> which room has motion, and when. <b>Never:</b> video, audio or photos.<br><b>Shared with:</b> Priya, and others only as the role list allows.<br><b>Where data lives:</b> motion events are stored in the family's own AWS account. Today they are processed in the cloud. On-device processing is planned, not built.</div><div id="consentLine" class="sm" style="margin:8px 0"></div><div id="privState" class="sm"></div><div class="row" style="margin-top:8px"><button id="pauseBtn" class="p">Pause monitoring</button><button id="withdrawBtn">Withdraw consent</button></div></div>
+<div class="card" id="privBanner" style="display:none"><div>&#128274; Mom has paused monitoring. Only the emergency button works.</div></div>
+"""
+BOT = """<div class="card"><h2>Device batteries</h2><div id="battBody"></div><div id="battNote" class="sm" style="margin-top:6px"></div><div class="sm" style="margin-top:6px">Simulated battery levels. Charging reminders are spoken aloud.</div></div>
+<div class="card"><h2>Weekly trend</h2><svg id="trendSvg" viewBox="0 0 300 112" style="width:100%;max-width:420px;display:block"></svg><div id="trendMsg" class="ins" style="margin-top:6px"></div><div class="sm" style="margin-top:6px">Activity score per day, dashed line is last week's average. Simulated data.</div></div>
+<div class="card"><h2>Emergency contacts</h2><div class="row"><input id="nbName" placeholder="Neighbor name" style="font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><input id="nbPhone" placeholder="+918792340621" style="font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button id="nbSave">Save</button></div><div id="nbState" class="sm" style="margin-top:8px"></div><div class="sm" style="margin-top:6px">The number stays in this browser. Real text delivery needs a verified number in Amazon SNS, so the demo shows the flow.</div></div>
+<div class="card"><h2>Alexa-style voice check-in</h2><div id="echoState" class="ins good" style="margin:6px 0">Idle. Starts when the movement check finds prolonged inactivity.</div><div style="height:8px;border-radius:5px;background:var(--line);overflow:hidden"><div id="echoBar" style="height:100%;width:0;background:var(--warn)"></div></div><div class="row" style="margin-top:8px"><button id="echoGo" class="p">Simulate prolonged inactivity</button><button id="echoOk">I'm fine</button><button id="echoMic">Say yes (microphone)</button></div><div class="sm" style="margin-top:6px">Simulation. No Echo device or Alexa skill is connected. A real version would be an Alexa skill.</div></div>
+"""
+a = '<div class="card"><div class="row"><span class="sm">Scenario'; b = '<div class="card"><h2>Family settings</h2>'; e = "</script></body></html>"
+for k in (a, b, e):
+    if k not in h: sys.exit("Patch point not found, nothing written.")
+h = h.replace(a, TOP + a, 1).replace(b, BOT + b, 1)
+h = h.replace(e, open(os.path.join(os.path.dirname(__file__), "final_module.js"), encoding="utf-8").read() + e, 1)
+shutil.copy(P, P + ".bak3"); open(P, "w", encoding="utf-8").write(h); print("Done. Backup saved as web/index.html.bak3")

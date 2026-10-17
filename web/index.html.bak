@@ -23,8 +23,18 @@ label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
 .dot{width:22px;height:22px;border-radius:50%;background:var(--line);flex:none;text-align:center;font-size:12px;line-height:22px}
 .act .dot{background:var(--warn);color:#fff}.done .dot{background:var(--ok);color:#fff}
 .sm{font-size:13px;color:var(--mut)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,130,43,.5)}100%{box-shadow:0 0 0 14px rgba(217,130,43,0)}}
+@keyframes bob{50%{transform:translateY(-4px) rotate(10deg)}}
+@keyframes grow{from{transform:scaleX(0)}}
+@keyframes rip{0%{box-shadow:0 0 0 0 rgba(194,65,12,.6)}100%{box-shadow:0 0 0 24px rgba(194,65,12,0)}}
+.card{animation:up .5s both}.ins{animation:pulse 1.6s 2}.act .dot{animation:pulse 1.2s infinite}
+#tl rect{transform-box:fill-box;transform-origin:left;animation:grow .8s both}#tl circle{animation:up .6s both}
+button{transition:transform .15s}button:active{transform:scale(.95)}
+.sos{font-size:16px;padding:14px 18px;border-color:var(--acc);animation:rip 2.2s infinite}.sos.hot{background:var(--bad);color:#fff;border-color:var(--bad)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style></head><body><div class="w">
-<div class="row" style="justify-content:space-between"><div><h1>💍 CareRing</h1><div class="tag">From passive monitoring to active, context-aware care.</div></div>
+<div class="row" style="justify-content:space-between"><div><h1><span style="display:inline-block;animation:bob 3s infinite">💍</span> CareRing</h1><div class="tag">From passive monitoring to active, context-aware care.</div></div>
 <div class="sm" id="who"></div></div>
 
 <div class="sm" style="margin:0 0 10px">DEMO MODE: Ring webhook is live and signed. Routine baseline is simulated. Reasoning is a rule-based fallback.</div><div class="card"><h2>Ring event received</h2><div id="ringBody" class="sm">Waiting for a Ring webhook...</div></div>
@@ -47,6 +57,9 @@ label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
 <div class="row" style="margin-top:8px"><button class="p" onclick="startEsc()">Run escalation</button>
 <button onclick="reply()">I'm fine</button><button onclick="hearAlert()">&#128266; Read alert aloud</button><button onclick="resetEsc()">Reset</button></div></div>
 
+<div class="card"><h2>Cultural routine engine</h2><div class="row" id="calRow"></div><div class="sm" id="calNote" style="margin-top:8px"></div></div>
+<div class="card"><h2>Reverse check-in · Mom's view</h2><div class="row"><button class="sos" onclick="sos(1)">🙋 I need Priya</button><button class="sos hot" onclick="sos(3)">🚨 Emergency</button></div><div class="sm" id="sosNote" style="margin-top:10px">Mom can ask for help herself. One tap, no watching involved.</div></div>
+<div class="card"><h2>Medicine and meal schedule</h2><div class="sm" id="simLbl"></div><input type="range" id="simSl" min="360" max="1380" step="15" value="665" style="width:100%"><div id="schedAlert"></div><div id="schedList"></div><div class="sm" style="margin-top:8px">Drag the slider to move the clock. Meals are checked against kitchen activity. Tablets need a tap. Reminders are spoken aloud.</div></div>
 <div class="card"><h2>Family settings</h2>
 <label><input type="checkbox" id="priv" onchange="render()"><span><b>Privacy Mode</b><br><span class="sm">Metadata only. No cloud AI, no video. Insights come from on‑device pattern rules.</span></span></label>
 <label><input type="checkbox" id="cNight" checked onchange="render()"><span><b>Late‑night kitchen visits are normal for Dad</b><br><span class="sm">Ignored in anomaly detection.</span></span></label>
@@ -55,6 +68,9 @@ label{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
 <div class="card"><h2>Pipeline (production)</h2><div class="sm">Ring webhook → RingGuard (Lambda) → DynamoDB → nightly Lambda → Bedrock (Claude) summary → SNS + Twilio escalation → Amplify dashboard. This prototype runs the baseline and reasoning logic in the browser on simulated data.</div></div>
 </div>
 <script>
+const API='https://gf55hcoe2oxopn7xxp4o6oclny0iiljr.lambda-url.us-east-1.on.aws/',live=!API.startsWith('API_');
+const CALS={everyday:['Everyday','Standard routine.'],ramadan:['Ramadan','Pre-dawn kitchen activity is normal. Morning kitchen check paused.'],temple:['Sunday temple','A temple outing by 10 AM is expected.'],diwali:['Diwali','Festival day: visitors and cooking all day. Outing and kitchen checks paused.']};
+let cal='everyday',_sc=0;
 // seeded RNG
 let s=42;const R=()=>(s=(s*16807)%2147483647)/2147483647;const N=(m,sd)=>m+sd*((R()+R()+R()-1.5)*2);
 const fmt=m=>{m=Math.round(m);let h=Math.floor(m/60)%24,mi=m%60;return(h%12||12)+":"+String(mi).padStart(2,"0")+(h<12?" AM":" PM")};
@@ -68,17 +84,17 @@ let day=1,escState=-1,replied=false,timers=[];
 function setDay(i){day=i;b0.className=i==0?'on':'';b1.className=i==1?'on':'';resetEsc();}
 function analyze(){const d=days[day],f=[],pr=priv.checked;let score=100;
  const bk=avg('kitchen');
- if(d.kitchen===null){const late=NOW-bk;f.push({t:`Mom usually makes coffee by ${fmt(bk)}. Today there is no kitchen motion by ${fmt(NOW)} (${Math.round(late/60*10)/10} h late). She went to the living room at ${fmt(d.living[0][0])} and has been seated for ${Math.round((NOW-d.living[0][0])/6)/10} hours, versus a typical ${Math.round(avg('livingMax'))} min.`,sev:2});score-=35}
- else if(Math.abs(d.kitchen-bk)>2*sd('kitchen')+10){f.push({t:`Kitchen visit at ${fmt(d.kitchen)}, unusual.`,sev:1});score-=10}
+ if(d.kitchen===null&&cal!='ramadan'&&cal!='diwali'){const late=NOW-bk;f.push({t:`Mom usually makes coffee by ${fmt(bk)}. Today there is no kitchen motion by ${fmt(NOW)} (${Math.round(late/60*10)/10} h late). She went to the living room at ${fmt(d.living[0][0])} and has been seated for ${Math.round((NOW-d.living[0][0])/6)/10} hours, versus a typical ${Math.round(avg('livingMax'))} min.`,sev:2});score-=35}
+ else if(d.kitchen!==null&&Math.abs(d.kitchen-bk)>2*sd('kitchen')+10){f.push({t:`Kitchen visit at ${fmt(d.kitchen)}, unusual.`,sev:1});score-=10}
  const nb=avg('nightBath');if(d.nightBath>nb+2*sd('nightBath')){f.push({t:`${d.nightBath} bathroom visits overnight versus an average of ${nb.toFixed(1)}. Possible sign of infection, medication effect, or fall risk.`,sev:2});score-=20}
  if(!cNight.checked&&d.nightKit>avg('nightKit')+1.5){f.push({t:`${d.nightKit} late-night kitchen visits (baseline ${avg('nightKit').toFixed(1)}).`,sev:1});score-=10}
- if(cOut.checked&&d.out===null){f.push({t:`No outing detected by 10:00 AM, which is part of her routine.`,sev:1});score-=15}
- score=Math.max(0,score);return{f,score,pr}}
+ if((cOut.checked||cal=='temple')&&cal!='diwali'&&d.out===null){f.push({t:`No outing detected by 10:00 AM, which is part of her routine.`,sev:1});score-=15}
+ if(cal!='everyday')f.push({t:'Cultural routine applied: '+CALS[cal][0]+'. '+CALS[cal][1],sev:0,good:1});score=Math.max(0,score);return{f,score,pr}}
 function render(){const a=analyze(),sc=a.score;
  who.textContent='Caregiver: Priya · Elder: Mom';
- score.textContent=sc;score.className='score '+(sc>=80?'ok':sc>=55?'warn':'bad');
+ countUp(sc);score.className='score '+(sc>=80?'ok':sc>=55?'warn':'bad');
  scoreNote.textContent=cOut.checked||cNight.checked?'Adjusted for your family\'s definition of normal.':'Using generic baseline only.';
- ins.innerHTML=a.f.length?a.f.map(x=>`<div class="ins">${x.t}</div>`).join(''):'<div class="ins good">Routine matches the 30‑day baseline. Nothing to report.</div>';
+ ins.innerHTML=a.f.length?a.f.map(x=>`<div class="ins${x.good?' good':''}">${x.t}</div>`).join(''):'<div class="ins good">Routine matches the 30‑day baseline. Nothing to report.</div>';
  src.textContent=a.pr?'Privacy Mode: on-device rules, metadata only, no video.':'Cloud reasoning via Bedrock (simulated here). Video only fetched on high-severity alerts, deleted after 24 h.';
  draw();escRender()}
 function draw(){const d=days[day],t=document.getElementById('tl');const X=m=>40+m/1440*540;
@@ -89,14 +105,14 @@ function draw(){const d=days[day],t=document.getElementById('tl');const X=m=>40+
  h+=mk(1,avg('kitchen'))+mk(4,avg('out'));
  d.living.forEach(([a,b])=>h+=`<rect x="${X(a)}" y="${20+64-6}" width="${Math.max(3,X(b)-X(a))}" height="12" rx="3" fill="var(--warn)" opacity=".8"/>`);
  d.ev.forEach(([m,k])=>{const i=rows.findIndex(r=>r[0]==k);if(i>=0&&k!='living')h+=`<circle cx="${X(m)}" cy="${20+i*32+4}" r="5" fill="var(--acc)"/>`});
- h+=`<line x1="${X(NOW)}" x2="${X(NOW)}" y1="6" y2="172" stroke="var(--bad)"/><text x="${X(NOW)+3}" y="12" font-size="9" fill="var(--bad)">now</text>`;t.innerHTML=h}
+ h+=`<line x1="${X(NOW)}" x2="${X(NOW)}" y1="6" y2="172" stroke="var(--bad)"/><circle cx="${X(NOW)}" cy="12" r="4" fill="var(--bad)"><animate attributeName="r" values="3;8;3" dur="1.6s" repeatCount="indefinite"/></circle><text x="${X(NOW)+3}" y="12" font-size="9" fill="var(--bad)">now</text>`;t.innerHTML=h}
 const steps=[['Alexa voice check-in','"Hi Mom, just checking in. Did you take your morning meds?"'],['Tier 1 · Family push','Priya gets the insight with a 10-second clip (Privacy Mode: summary only).'],['Tier 2 · Community SMS','After 30 min unacknowledged, SMS to neighbor / community health worker.'],['Tier 3 · Voice call','Automated call to the care coordinator.']];
 function escRender(){const sev=Math.max(0,...analyze().f.map(x=>x.sev));
- if(!sev){esc.innerHTML='<div class="sm">No escalation needed.</div>';return}
+ if(!sev&&escState<0){esc.innerHTML='<div class="sm">No escalation needed.</div>';return}
  esc.innerHTML=steps.map((s,i)=>{const c=replied&&escState>=0?(i==0?'done':''):(i<escState?'done':i==escState?'act':'');
  return`<div class="step ${c}"><div class="dot">${c=='done'?'✓':i+1}</div><div><b>${s[0]}</b><div class="sm">${s[1]}</div></div></div>`}).join('')+
  (replied?'<div class="ins good">Mom responded. Alert downgraded, dignity preserved. Family sees a calm note.</div>':'')}
-function startEsc(){resetEsc();if(!analyze().f.length)return;escState=0;render();
+function startEsc(){resetEsc();if(!analyze().f.filter(x=>x.sev).length)return;escState=0;render();
  [1,2,3].forEach((n,i)=>timers.push(setTimeout(()=>{if(!replied){escState=n;render()}},(i+1)*1800)))}
 function reply(){if(escState<0)return;replied=true;timers.forEach(clearTimeout);render()}
 function resetEsc(){timers.forEach(clearTimeout);timers=[];escState=-1;replied=false;render()}
@@ -149,4 +165,51 @@ function f(t){
  }
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)requestAnimationFrame(f)}
 requestAnimationFrame(f);
-})();</script></body></html>
+})();
+function countUp(t){const el=document.getElementById('score'),f=_sc;_sc=t;const s=performance.now();(function st(n){const p=Math.min(1,(n-s)/700);el.textContent=Math.round(f+(t-f)*p);if(p<1)requestAnimationFrame(st)})(s)}
+function renderCal(){calRow.innerHTML=Object.keys(CALS).map(k=>`<button class="${k==cal?'on':''}" onclick="setCal('${k}')">${CALS[k][0]}</button>`).join('');calNote.textContent=CALS[cal][1]}
+function showLive(d){const el=document.getElementById('liveBody');if(!el||!d.msg)return;const m=document.createElement('div');m.className='ins';m.textContent=d.msg;const s=document.createElement('div');s.textContent='Source: '+({ai:'Claude on Amazon Bedrock',help:'Mom pressed the help button'}[d.source]||'rule-based fallback')+' | '+new Date(d.ts*1000).toLocaleString()+' | '+(d.ack?'Mom replied':'awaiting reply');el.textContent='';el.appendChild(m);el.appendChild(s)}
+function setCal(k){cal=k;renderCal();render();if(live)fetch(API+'?action=mode&elder=mom&value='+k).then(r=>r.json()).then(showLive).catch(()=>{})}
+function sos(l){sosNote.textContent=l==1?'Priya has been notified. Help is on the way.':'Emergency sent to the whole care circle.';sosNote.className='sm bad';
+ if(live)fetch(API+'?action=help&elder=mom&level='+l).then(r=>r.json()).then(showLive).catch(()=>{});
+ resetEsc();escState=l==3?3:0;render();
+ if(l==1)[1,2,3].forEach((x,i)=>timers.push(setTimeout(()=>{if(!replied){escState=x;render()}},(i+1)*1800)))}
+document.querySelectorAll('.card').forEach((c,i)=>c.style.animationDelay=i*.07+'s');renderCal();render();
+(function(){
+days.push(
+ {kitchen:620,out:null,nightBath:2,nightKit:1,living:[[540,600]],ev:[[420,'bed'],[600,'living'],[620,'kitchen'],[140,'bath'],[250,'bath']]},
+ {kitchen:455,out:540,nightBath:7,nightKit:4,living:[[560,640]],ev:[[400,'bed'],[455,'kitchen'],[540,'out'],[40,'bath'],[100,'bath'],[150,'bath'],[210,'bath'],[260,'bath'],[300,'bath'],[330,'bath']]},
+ {kitchen:410,out:480,nightBath:1,nightKit:0,living:[[560,640]],ev:[[360,'bed'],[410,'kitchen'],[480,'out'],[200,'bath']]});
+const sb=document.getElementById('b0').parentNode;
+['Late riser','Night wanderer','Early bird'].forEach((n,i)=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>setDay(i+2);sb.appendChild(b)});
+const sn=document.createElement('div');sn.className='sm';sn.id='scnNote';sn.style.marginTop='8px';sb.parentNode.appendChild(sn);
+let taken={},spoken={},simT=665;
+setDay=function(i){day=i;sb.querySelectorAll('button').forEach((b,j)=>b.className=j==i?'on':'');taken={};spoken={};resetEsc()};
+const S=[['Morning tablets',480,'\uD83D\uDC8A'],['Breakfast',510,'\uD83C\uDF7D\uFE0F'],['Lunch',780,'\uD83C\uDF7D\uFE0F'],['Evening tablets',1080,'\uD83D\uDC8A'],['Dinner',1230,'\uD83C\uDF7D\uFE0F']];
+const say2=t=>{try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.92;speechSynthesis.speak(u)}catch(e){}};
+const sp=t=>(window.say||say2)(t);
+function stat(i){const t=S[i][1],d=days[day],med=i==0||i==3;
+ if(med&&taken[i])return['done','taken'];
+ if(!med&&d.kitchen!==null){if(i==1&&simT>=d.kitchen)return[d.kitchen>t+45?'late':'done','kitchen at '+fmt(d.kitchen)];if(i!=1&&simT>t+30)return['done','kitchen activity']}
+ if(simT<t-30)return['up','due '+fmt(t)];
+ if(simT<=t+60)return['due','due now'];
+ return['miss','missed']}
+function schedRender(){
+ const el=document.getElementById('schedList'),al=document.getElementById('schedAlert');if(!el)return;
+ document.getElementById('simLbl').textContent='Simulated time: '+fmt(simT);el.innerHTML='';al.innerHTML='';let msg='',cls='ins';
+ S.forEach(([n,t,ic],i)=>{const[s,tx]=stat(i),med=i==0||i==3,r=document.createElement('div');
+  r.style.cssText='display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)';
+  const c={done:'var(--ok)',late:'var(--warn)',due:'var(--warn)',miss:'var(--bad)',up:'var(--mut)'}[s];
+  r.innerHTML='<span>'+ic+'</span><div style="flex:1">'+n+'<div class="sm">'+fmt(t)+'</div></div><span class="sm" style="color:'+c+'">'+tx+'</span>';
+  if(med&&(s=='due'||s=='miss')){const b=document.createElement('button');b.textContent='Mark taken';b.onclick=()=>{taken[i]=1;schedRender()};r.appendChild(b)}
+  el.appendChild(r);
+  if(med&&s=='due'){msg='Time for your '+n.toLowerCase()+', Mom.';if(!spoken[i]){spoken[i]=1;sp(msg)}}
+  if(med&&s=='miss'){msg='Mom missed her '+n.toLowerCase()+'. Priya has been notified.';if(!spoken['m'+i]){spoken['m'+i]=1;sp(msg)}}
+  if(!med&&s=='miss'&&!msg)msg=n+' not detected. Gentle check-in suggested.'});
+ if(msg){al.className=cls;al.textContent='\uD83D\uDD14 '+msg;al.style.margin='8px 0'}else al.className=''}
+function note(){const d=days[day];sn.textContent='Kitchen: '+(d.kitchen==null?'no visit yet':fmt(d.kitchen))+' | Outing: '+(d.out==null?'none yet':fmt(d.out))+' | Overnight bathroom trips: '+d.nightBath+' | Late-night kitchen visits: '+d.nightKit}
+document.getElementById('simSl').oninput=e=>{simT=+e.target.value;schedRender()};
+const _r2=render;render=function(){_r2();note();schedRender()};
+render();
+})();
+</script></body></html>
